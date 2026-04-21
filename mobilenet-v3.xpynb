@@ -1,0 +1,249 @@
+{
+ "nbformat": 4,
+ "nbformat_minor": 5,
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "name": "python",
+   "version": "3.8.0"
+  }
+ },
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "title",
+   "metadata": {},
+   "source": [
+    "# MobileNet-V3 — Lightweight Deep Learning Experiments\n",
+    "\n",
+    "This notebook covers training, evaluation, and analysis of the **MobileNet-V3** architecture for image classification tasks.\n",
+    "\n",
+    "## Contents\n",
+    "1. Environment Setup & Imports\n",
+    "2. Dataset Preparation\n",
+    "3. Model Configuration\n",
+    "4. Training\n",
+    "5. Evaluation & Metrics\n",
+    "6. Inference Speed Benchmark\n",
+    "7. Visualization"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "section-1",
+   "metadata": {},
+   "source": ["## 1. Environment Setup & Imports"]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "imports",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import torch\n",
+    "import torch.nn as nn\n",
+    "import torchvision\n",
+    "import torchvision.transforms as transforms\n",
+    "from torchvision.datasets import ImageFolder\n",
+    "from torch.utils.data import DataLoader\n",
+    "from torchvision.models import mobilenet_v3_large, MobileNet_V3_Large_Weights\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "import time\n",
+    "\n",
+    "device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')\n",
+    "print(f'Using device: {device}')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "section-2",
+   "metadata": {},
+   "source": ["## 2. Dataset Preparation"]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "dataset",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# MobileNet-V3 expects 224x224 input\n",
+    "IMG_SIZE = 224\n",
+    "BATCH_SIZE = 64\n",
+    "NUM_CLASSES = 10  # update based on your dataset\n",
+    "\n",
+    "train_transform = transforms.Compose([\n",
+    "    transforms.Resize((IMG_SIZE, IMG_SIZE)),\n",
+    "    transforms.RandomHorizontalFlip(),\n",
+    "    transforms.RandomRotation(10),\n",
+    "    transforms.ColorJitter(brightness=0.2, contrast=0.2),\n",
+    "    transforms.ToTensor(),\n",
+    "    transforms.Normalize(mean=[0.485, 0.456, 0.406],\n",
+    "                         std=[0.229, 0.224, 0.225]),\n",
+    "])\n",
+    "\n",
+    "val_transform = transforms.Compose([\n",
+    "    transforms.Resize((IMG_SIZE, IMG_SIZE)),\n",
+    "    transforms.ToTensor(),\n",
+    "    transforms.Normalize(mean=[0.485, 0.456, 0.406],\n",
+    "                         std=[0.229, 0.224, 0.225]),\n",
+    "])\n",
+    "\n",
+    "# Example: load from ImageFolder structure\n",
+    "# train_dataset = ImageFolder('data/train', transform=train_transform)\n",
+    "# val_dataset   = ImageFolder('data/val',   transform=val_transform)\n",
+    "# train_loader  = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True,  num_workers=4)\n",
+    "# val_loader    = DataLoader(val_dataset,   batch_size=BATCH_SIZE, shuffle=False, num_workers=4)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "section-3",
+   "metadata": {},
+   "source": ["## 3. Model Configuration"]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "model",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Load pretrained MobileNet-V3-Large\n",
+    "weights = MobileNet_V3_Large_Weights.IMAGENET1K_V2\n",
+    "model = mobilenet_v3_large(weights=weights)\n",
+    "\n",
+    "# Replace classifier head for custom number of classes\n",
+    "in_features = model.classifier[-1].in_features\n",
+    "model.classifier[-1] = nn.Linear(in_features, NUM_CLASSES)\n",
+    "model = model.to(device)\n",
+    "\n",
+    "total_params = sum(p.numel() for p in model.parameters())\n",
+    "trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)\n",
+    "print(f'Total parameters:     {total_params:,}')\n",
+    "print(f'Trainable parameters: {trainable_params:,}')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "section-4",
+   "metadata": {},
+   "source": ["## 4. Training"]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "training",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "EPOCHS = 20\n",
+    "LR = 1e-3\n",
+    "\n",
+    "criterion = nn.CrossEntropyLoss()\n",
+    "optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)\n",
+    "scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)\n",
+    "\n",
+    "# Training loop placeholder\n",
+    "# for epoch in range(EPOCHS):\n",
+    "#     model.train()\n",
+    "#     running_loss = 0.0\n",
+    "#     for inputs, labels in train_loader:\n",
+    "#         inputs, labels = inputs.to(device), labels.to(device)\n",
+    "#         optimizer.zero_grad()\n",
+    "#         outputs = model(inputs)\n",
+    "#         loss = criterion(outputs, labels)\n",
+    "#         loss.backward()\n",
+    "#         optimizer.step()\n",
+    "#         running_loss += loss.item()\n",
+    "#     scheduler.step()\n",
+    "#     print(f'Epoch {epoch+1}/{EPOCHS} | Loss: {running_loss/len(train_loader):.4f}')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "section-5",
+   "metadata": {},
+   "source": ["## 5. Evaluation & Metrics"]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "evaluation",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Evaluation placeholder\n",
+    "# model.eval()\n",
+    "# correct, total = 0, 0\n",
+    "# with torch.no_grad():\n",
+    "#     for inputs, labels in val_loader:\n",
+    "#         inputs, labels = inputs.to(device), labels.to(device)\n",
+    "#         outputs = model(inputs)\n",
+    "#         _, predicted = outputs.max(1)\n",
+    "#         total += labels.size(0)\n",
+    "#         correct += predicted.eq(labels).sum().item()\n",
+    "# print(f'Validation Accuracy: {100. * correct / total:.2f}%')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "section-6",
+   "metadata": {},
+   "source": ["## 6. Inference Speed Benchmark"]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "benchmark",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Measure average inference time per image\n",
+    "dummy_input = torch.randn(1, 3, IMG_SIZE, IMG_SIZE).to(device)\n",
+    "model.eval()\n",
+    "\n",
+    "runs = 50\n",
+    "start = time.time()\n",
+    "with torch.no_grad():\n",
+    "    for _ in range(runs):\n",
+    "        _ = model(dummy_input)\n",
+    "elapsed = (time.time() - start) / runs * 1000\n",
+    "print(f'MobileNet-V3 avg inference time: {elapsed:.2f} ms/image')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "section-7",
+   "metadata": {},
+   "source": ["## 7. Visualization"]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "visualization",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Plot training curves (fill in with actual history lists)\n",
+    "# plt.figure(figsize=(12, 4))\n",
+    "# plt.subplot(1, 2, 1)\n",
+    "# plt.plot(train_losses, label='Train Loss')\n",
+    "# plt.plot(val_losses,   label='Val Loss')\n",
+    "# plt.legend(); plt.title('Loss Curve')\n",
+    "# plt.subplot(1, 2, 2)\n",
+    "# plt.plot(train_accs, label='Train Acc')\n",
+    "# plt.plot(val_accs,   label='Val Acc')\n",
+    "# plt.legend(); plt.title('Accuracy Curve')\n",
+    "# plt.tight_layout()\n",
+    "# plt.show()"
+   ]
+  }
+ ]
+}
